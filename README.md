@@ -30,7 +30,7 @@ See [Phase 1 development notes](docs/phase-1.md) for implementation status and d
 
 ## Private deployment
 
-Use a dedicated CalendarIntel Supabase project and the CalendarIntel Cloudflare zone. Open the [Supabase dashboard](https://supabase.com/dashboard/projects) and [Cloudflare dashboard](https://dash.cloudflare.com/). Disable signups, provision the owner, and allowlist `https://calendarintel.app` for Auth redirects. Verify email delivery on desktop and iPhone. Each device requests and opens its own login link in the same browser.
+Use a dedicated CalendarIntel Supabase project and the CalendarIntel Cloudflare zone. Open the [Supabase dashboard](https://supabase.com/dashboard/projects) and [Cloudflare dashboard](https://dash.cloudflare.com/). Disable signups, provision the owner, and allowlist `https://calendarintel.app` for Auth redirects. The owner can sign in with the password set during provisioning. When email delivery is configured for the owner, verify email links on desktop and iPhone. Each device requests and opens its own link in the same browser.
 
 Build with `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY`, then configure the same project on the Worker. Install runtime values through the Worker secret store. They belong outside Git and the Vite environment.
 

@@ -146,6 +146,8 @@ function ProviderPicker({ session }: { session?: Session }) {
 
 function SignIn() {
   const [email, setEmail] = useState('')
+  const [password, setPassword] = useState('')
+  const [useLink, setUseLink] = useState(false)
   const [message, setMessage] = useState('')
   const [pending, setPending] = useState(false)
   async function signIn(event: FormEvent<HTMLFormElement>) {
@@ -153,23 +155,36 @@ function SignIn() {
     setPending(true)
     setMessage('')
     try {
-      const result = await supabase!.auth.signInWithOtp({
-        email, options: { shouldCreateUser: false, emailRedirectTo: location.origin },
-      })
-      setMessage(result.error ? 'Could not send a sign-in link.' : 'Check your email for a sign-in link.')
+      if (useLink) {
+        const { error } = await supabase!.auth.signInWithOtp({
+          email, options: { shouldCreateUser: false, emailRedirectTo: location.origin },
+        })
+        setMessage(error ? 'Could not send a sign-in link. You can sign in with your password.' : 'Check your email for a sign-in link.')
+      } else {
+        const { error } = await supabase!.auth.signInWithPassword({ email, password })
+        if (error) setMessage('Could not sign in. Check your email and password.')
+      }
     } catch {
-      setMessage('Could not send a sign-in link.')
+      setMessage('Could not reach the sign-in service. Try again.')
     } finally {
+      setPassword('')
       setPending(false)
     }
   }
   return <section>
     <h2>Sign in</h2>
     <form onSubmit={signIn}>
-      <label>Email<input required type="email" value={email} onChange={e => setEmail(e.target.value)} /></label>
-      <button disabled={pending}>Send sign-in link</button>
+      <label>Email<input required type="email" autoComplete="username" value={email} onChange={e => setEmail(e.target.value)} /></label>
+      {!useLink && <label>Password<input required type="password" autoComplete="current-password" value={password}
+        onChange={e => setPassword(e.target.value)} /></label>}
+      <button disabled={pending}>{useLink ? 'Send sign-in link' : 'Sign in'}</button>
     </form>
-    <p role="status">{message}</p>
+    <button type="button" className="sign-in-method" disabled={pending} onClick={() => {
+      setUseLink(!useLink)
+      setPassword('')
+      setMessage('')
+    }}>{useLink ? 'Use password instead' : 'Use an email link instead'}</button>
+    {message && <p role="status">{message}</p>}
   </section>
 }
 

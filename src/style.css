@@ -21,7 +21,8 @@ article { display: grid; grid-template-columns: 10rem 1fr auto; align-items: bas
 .time, .sources { color: #465e54; font-size: .9rem; }
 .conflict { background: #ffeadb; color: #80360c; border-radius: .25rem; padding: .2rem .45rem; font-size: .8rem; width: fit-content; }
 button, select, input { font: inherit; color: inherit; }
-button, select, input[type="email"] { border-radius: .4rem; padding: .5rem; border: 1px solid #788e81; }
+button, select, input[type="email"], input[type="password"] { border-radius: .4rem; padding: .5rem; border: 1px solid #788e81; }
 button { background: #234d41; color: white; cursor: pointer; }
 button:disabled { opacity: .65; }
+.sign-in-method { margin-top: .8rem; padding: .2rem 0; border: 0; background: transparent; color: #234d41; text-decoration: underline; }
 @media (max-width: 36rem) { article { grid-template-columns: 1fr; gap: .35rem; } }
