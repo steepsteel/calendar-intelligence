@@ -1,0 +1,33 @@
+{
+  "name": "calendar-intelligence",
+  "version": "1.0.0",
+  "description": "A unified, read-only calendar prototype for Google Calendar, Microsoft 365, Apple iCloud, and Zoho Calendar. Phase 1 targets a personal deployment using Cloudflare Workers and Queues, Supabase, React, and TypeScript.",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc --noEmit && vite build",
+    "test": "node --test tests/*.test.ts",
+    "preview": "wrangler dev"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/steepsteel/calendar-intelligence.git"
+  },
+  "type": "module",
+  "private": true,
+  "engines": {
+    "node": ">=22.18"
+  },
+  "dependencies": {
+    "@supabase/supabase-js": "^2.119.2",
+    "react": "^19.3.1",
+    "react-dom": "^19.3.1"
+  },
+  "devDependencies": {
+    "@types/node": "^26.6.11",
+    "@types/react": "^19.3.3",
+    "@types/react-dom": "^19.3.0",
+    "typescript": "^7.0.2",
+    "vite": "^8.4.0",
+    "wrangler": "^4.168.0"
+  }
+}
