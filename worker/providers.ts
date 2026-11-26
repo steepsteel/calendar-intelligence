@@ -1,13 +1,21 @@
 import type { Env } from './backend.ts'
 
-export const oauthProviders = ['google', 'microsoft', 'zoho'] as const
-export type OAuthProvider = typeof oauthProviders[number]
+export type OAuthProvider = 'google' | 'microsoft' | 'zoho'
+
+const zohoSuffixes = new Map([
+  ['us', 'com'], ['eu', 'eu'], ['in', 'in'], ['au', 'com.au'], ['cn', 'com.cn'],
+])
+
+export function enabledOAuthProviders(env: Env): OAuthProvider[] {
+  const providers: OAuthProvider[] = []
+  if (env.GOOGLE_CLIENT_ID && env.GOOGLE_CLIENT_SECRET) providers.push('google')
+  if (env.MICROSOFT_CLIENT_ID && env.MICROSOFT_CLIENT_SECRET) providers.push('microsoft')
+  if (env.ZOHO_CLIENT_ID && env.ZOHO_CLIENT_SECRET && zohoSuffixes.has(env.ZOHO_REGION ?? 'us')) providers.push('zoho')
+  return providers
+}
 
 export function zohoEndpoints(region = 'us') {
-  const suffixes = new Map([
-    ['us', 'com'], ['eu', 'eu'], ['in', 'in'], ['au', 'com.au'], ['cn', 'com.cn'],
-  ])
-  const suffix = suffixes.get(region)
+  const suffix = zohoSuffixes.get(region)
   if (!suffix) throw new Error('Unsupported Zoho region')
   return { accounts: `https://accounts.zoho.${suffix}`, calendar: `https://calendar.zoho.${suffix}/api/v1` }
 }

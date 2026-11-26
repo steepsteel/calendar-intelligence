@@ -1,5 +1,6 @@
 import { configured, database, isOwner, json, type Env } from './backend.ts'
-import type { OAuthProvider } from './providers.ts'
+import { connectApple } from './icloud.ts'
+import { enabledOAuthProviders, type OAuthProvider } from './providers.ts'
 import { calendarOAuth } from './oauth.ts'
 import { scheduledSyncError, syncDueConnection } from './sync.ts'
 
@@ -7,9 +8,18 @@ export default {
   async fetch(request: Request, env: Env): Promise<Response> {
     const { pathname } = new URL(request.url)
     if (pathname === '/api/health' && request.method === 'GET') return json({ status: 'ok' })
-    if (pathname === '/api/watch/probe' && request.method === 'GET' && env.WATCH_PROBE_ENABLED === 'true' &&
-      new URL(request.url).origin === env.APP_ORIGIN) {
+    if (pathname === '/api/watch/probe' && request.method === 'GET' && env.WATCH_PROBE_ENABLED === 'true') {
       return json({ id: crypto.randomUUID(), receivedAt: new Date().toISOString() })
+    }
+    if (pathname === '/api/calendar/providers' && request.method === 'GET') {
+      const url = new URL(request.url)
+      if (!configured(env) || url.protocol !== 'https:' || url.origin !== env.APP_ORIGIN) return json({ providers: [] })
+      const providers: (OAuthProvider | 'apple')[] = enabledOAuthProviders(env)
+      if (env.APPLE_CALDAV_ENABLED === 'true') providers.push('apple')
+      return json({ providers })
+    }
+    if (pathname === '/api/calendar/apple/connect' && request.method === 'POST') {
+      return connectApple(request, env)
     }
     const oauth = /^\/api\/calendar\/oauth\/(google|microsoft|zoho)\/(start|callback)$/.exec(pathname)
     if (oauth) {
@@ -21,7 +31,8 @@ export default {
     }
     const control = /^\/api\/calendar\/connections\/([\da-f]{8}(?:-[\da-f]{4}){3}-[\da-f]{12})\/(pause|resume|disconnect)$/.exec(pathname)
     if (control && request.method === 'POST') {
-      if (!configured(env) || new URL(request.url).origin !== env.APP_ORIGIN) {
+      const url = new URL(request.url)
+      if (!configured(env) || url.protocol !== 'https:' || url.origin !== env.APP_ORIGIN) {
         return json({ error: 'Calendar controls are unavailable.' }, 503)
       }
       if (request.headers.get('origin') !== env.APP_ORIGIN) return json({ error: 'Invalid origin.' }, 403)

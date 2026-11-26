@@ -2,6 +2,7 @@ export interface Env {
   ASSETS: { fetch(request: Request): Promise<Response> }
   APP_ORIGIN?: string
   WATCH_PROBE_ENABLED?: string
+  APPLE_CALDAV_ENABLED?: string
   OWNER_USER_ID?: string
   SUPABASE_URL?: string
   SUPABASE_ANON_KEY?: string

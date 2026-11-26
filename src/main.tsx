@@ -48,7 +48,24 @@ function ProviderPicker({ session }: { session?: Session }) {
   const [email, setEmail] = useState('')
   const [selected, setSelected] = useState<Provider | ''>('')
   const provider = selected || detectProvider(email)
-  const canConnect = provider === 'google' || provider === 'microsoft' || provider === 'zoho'
+  const apple = provider === 'apple'
+  const [password, setPassword] = useState('')
+  const [available, setAvailable] = useState<Provider[]>([])
+  const signedIn = Boolean(session)
+  useEffect(() => {
+    if (!signedIn) return
+    const controller = new AbortController()
+    void fetch('/api/calendar/providers', { signal: controller.signal })
+      .then(response => response.json())
+      .then(data => {
+        if (!controller.signal.aborted && Array.isArray(data.providers)) setAvailable(data.providers)
+      })
+      .catch(() => {
+        if (!controller.signal.aborted) setAvailable([])
+      })
+    return () => controller.abort()
+  }, [signedIn])
+  const enabled = Boolean(provider && available.includes(provider))
   const [pending, setPending] = useState(false)
   const [message, setMessage] = useState(() => {
     switch (new URLSearchParams(location.search).get('calendar')) {
@@ -66,19 +83,30 @@ function ProviderPicker({ session }: { session?: Session }) {
   }, [])
 
   async function connect() {
-    if (!session || !canConnect) return
+    if (!session || !provider || !enabled) return
+    const credentials = apple ? JSON.stringify({ email, password }) : undefined
+    setPassword('')
     setPending(true)
     setMessage('')
     try {
-      const response = await fetch(`/api/calendar/oauth/${provider}/start`, {
+      const endpoint = apple ? '/api/calendar/apple/connect' : `/api/calendar/oauth/${provider}/start`
+      const response = await fetch(endpoint, {
         method: 'POST',
-        headers: { authorization: `Bearer ${session.access_token}` },
+        headers: {
+          authorization: `Bearer ${session.access_token}`,
+          ...(apple ? { 'content-type': 'application/json' } : {}),
+        },
+        body: credentials,
       })
       if (response.status === 503) {
         setMessage('This provider is awaiting deployment setup.')
         return
       }
       if (!response.ok) throw new Error('Cannot start calendar connection')
+      if (apple) {
+        setMessage('Account connected. Your first import will run in the background.')
+        return
+      }
       const { url: authorizationUrl } = await response.json()
       location.assign(authorizationUrl)
     } catch {
@@ -91,18 +119,26 @@ function ProviderPicker({ session }: { session?: Session }) {
   return <section aria-labelledby="provider-title">
     <h2 id="provider-title">{session ? 'Connect a calendar' : 'Identify a calendar provider'}</h2>
     <div className="fields">
-      <label>Calendar email<input type="email" value={email} onChange={e => { setEmail(e.target.value); setSelected('') }} /></label>
+      <label>Calendar email<input type="email" value={email} onChange={e => { setEmail(e.target.value); setSelected(''); setPassword('') }} /></label>
       <div className="field">
         <label htmlFor="calendar-provider">Provider</label>
-        <select id="calendar-provider" value={provider || ''} onChange={e => setSelected(e.target.value as Provider)}>
+        <select id="calendar-provider" value={provider || ''} onChange={e => { setSelected(e.target.value as Provider); setPassword('') }}>
           <option value="" disabled>Choose a provider</option>
           {Object.entries(providerLabels).map(([id, label]) => <option value={id} key={id}>{label}</option>)}
         </select>
       </div>
     </div>
     {session && <>
-      <button type="button" onClick={connect} disabled={!canConnect || pending}>Connect with read-only access</button>
-      {provider && !canConnect && <p className="sources">Connections for {providerLabels[provider]} are in development.</p>}
+      {apple && enabled && <label>iCloud app-specific password
+        <input type="password" autoComplete="off" value={password} onChange={e => setPassword(e.target.value)} />
+      </label>}
+      {apple && enabled && <p className="sources">
+        Generate a password for CalendarIntel in <a href="https://account.apple.com/" target="_blank" rel="noreferrer">Apple Account settings</a>.
+      </p>}
+      {provider && !enabled && <p className="sources">This provider is awaiting deployment setup.</p>}
+      <button type="button" onClick={connect} disabled={!enabled || pending || (apple && (!email || !password))}>
+        {apple ? 'Connect iCloud' : 'Connect with read-only access'}
+      </button>
     </>}
     {message && session && <p role="status">{message}</p>}
   </section>

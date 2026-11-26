@@ -1,7 +1,7 @@
 {
   "name": "calendar-intelligence",
   "version": "1.0.0",
-  "description": "A unified, read-only calendar prototype for Google Calendar, Microsoft 365, Apple iCloud, and Zoho Calendar. Phase 1 targets a personal deployment using Cloudflare Workers and Queues, Supabase, React, and TypeScript.",
+  "description": "A unified, read-only calendar prototype for Google Calendar, Microsoft 365, Apple iCloud, and Zoho Calendar. Phase 1 targets a personal deployment using Cloudflare Workers, Supabase, React, and TypeScript.",
   "scripts": {
     "dev": "vite",
     "build": "tsc --noEmit && vite build",
@@ -19,6 +19,8 @@
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.119.2",
+    "fast-xml-parser": "5.12.1",
+    "ical.js": "2.2.1",
     "react": "^19.3.1",
     "react-dom": "^19.3.1"
   },

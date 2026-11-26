@@ -1,11 +1,12 @@
 import { configured, database, openToken, sealToken, tokenContext, type Env } from './backend.ts'
+import { appleSnapshot } from './icloud.ts'
 import { calendarSnapshot } from './import.ts'
-import { exchange, oauthConfig, oauthProviders, ProviderError, type OAuthProvider } from './providers.ts'
+import { enabledOAuthProviders, exchange, oauthConfig, ProviderError, type OAuthProvider } from './providers.ts'
 
 interface Claim {
   id: string
   user_id: string
-  provider: OAuthProvider
+  provider: OAuthProvider | 'apple'
   account_id: string
   sealed_refresh_token: string
   sync_lease_id: string
@@ -14,10 +15,8 @@ interface Claim {
 
 export async function syncDueConnection(env: Env) {
   if (!configured(env)) return
-  const sources = oauthProviders.filter(provider => {
-    const config = oauthConfig(provider, env)
-    return Boolean(config.clientId && config.clientSecret)
-  })
+  const sources: Claim['provider'][] = enabledOAuthProviders(env)
+  if (env.APPLE_CALDAV_ENABLED === 'true') sources.push('apple')
   if (!sources.length) return
   await database(env, 'calendar_oauth_requests?expires_at=lt.' + encodeURIComponent(new Date().toISOString()), 'DELETE')
   const [claim] = await database<Claim[]>(env, 'rpc/claim_calendar_sync', 'POST', {
@@ -31,21 +30,26 @@ export async function syncDueConnection(env: Env) {
     if (claim.provider === 'zoho' && !claim.account_id.startsWith((env.ZOHO_REGION ?? 'us') + ':')) {
       throw new ProviderError(true)
     }
-    const refreshToken = await openToken(env.CALENDAR_TOKEN_KEY!, context, claim.sealed_refresh_token)
-    const { accessToken, refreshToken: rotated } = await exchange(oauthConfig(claim.provider, env), {
-      grant_type: 'refresh_token', refresh_token: refreshToken,
-    })
-    if (rotated && rotated !== refreshToken) {
-      const saved = await database<boolean>(env, 'rpc/rotate_calendar_token', 'POST', {
-        ...link, sealed_token: await sealToken(env.CALENDAR_TOKEN_KEY!, context, rotated),
-      })
-      if (!saved) return
-    }
+    const credential = await openToken(env.CALENDAR_TOKEN_KEY!, context, claim.sealed_refresh_token)
     // Include a buffer around the browser's local 14-day agenda on either side.
     const day = 86_400_000
     const start = new Date(Date.now() - 2 * day).toISOString()
     const end = new Date(Date.now() + 16 * day).toISOString()
-    const imported = await calendarSnapshot(claim.provider, accessToken, start, end, env.ZOHO_REGION)
+    let imported
+    if (claim.provider === 'apple') {
+      imported = await appleSnapshot(JSON.parse(credential), start, end)
+    } else {
+      const { accessToken, refreshToken: rotated } = await exchange(oauthConfig(claim.provider, env), {
+        grant_type: 'refresh_token', refresh_token: credential,
+      })
+      if (rotated && rotated !== credential) {
+        const saved = await database<boolean>(env, 'rpc/rotate_calendar_token', 'POST', {
+          ...link, sealed_token: await sealToken(env.CALENDAR_TOKEN_KEY!, context, rotated),
+        })
+        if (!saved) return
+      }
+      imported = await calendarSnapshot(claim.provider, accessToken, start, end, env.ZOHO_REGION)
+    }
     await database(env, 'rpc/finish_calendar_sync', 'POST', {
       ...link, outcome: 'healthy', delay_seconds: 600, window_start: start, window_end: end, imported,
     })

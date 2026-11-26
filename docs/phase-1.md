@@ -12,7 +12,7 @@ The production bundle and five automated tests passed. A local Worker run return
 
 ## Read-only onboarding and imports
 
-The Worker issues owner-only OAuth requests with single-use state, a secure browser cookie, and PKCE for Google and Microsoft. Zoho uses a server-based client in one configured data center. Credentials are encrypted with AES-GCM and bound to their owner, provider and provider account ID. The dashboard supports pause, resume and disconnect. Disconnect removes imported rows and the stored credential. Access can also be revoked at the provider.
+The Worker issues owner-only OAuth requests with single-use state, a secure browser cookie, and PKCE for Google and Microsoft. Zoho uses a server-based client in one configured data center. iCloud uses an owner-entered app-specific password and CalDAV discovery with queries restricted to Apple CalDAV hosts. The iCloud connector starts disabled for staged rollout. Credentials are encrypted with AES-GCM and bound to their owner, provider and provider account ID. The dashboard supports pause, resume and disconnect. Disconnect removes imported rows and the stored credential. Access can also be revoked at the provider.
 
 A Cloudflare cron runs every two minutes and claims one due account with a database lease. The account is eligible again ten minutes after a successful run. Each run fetches an 18-day rolling window. The dashboard exposes the next 14 days. A complete fetch can update events and remove missing rows within the fetched window. A partial or failed fetch leaves the last good snapshot intact. Throttling and transient failures delay the next attempt. Revocation prompts reauthorization. Full-window polling is appropriate for a small personal deployment. Provider cursors, queue fan-out, historical retention cleanup, and all-day date fidelity across time zones remain follow-up work.
 
@@ -21,6 +21,6 @@ The local checks use simulated provider requests and isolated database roles. Li
 ## Remaining prototype work
 
 - Set up the dedicated Cloudflare Worker, custom domain and Supabase project, then verify private sign-in and the same live agenda on desktop and iPhone.
-- Complete and verify iCloud CalDAV discovery, recurring events and app-specific password enrollment. Keep iCloud disabled until its read-only behavior is verified.
+- Enable iCloud in a dedicated test deployment and verify Apple's CalDAV discovery, recurring events and app-specific password enrollment against a test account. Validate all-day and floating-time behavior against all providers.
 - Install a watchOS build and verify the direct HTTPS check with the paired iPhone powered off. Private Watch agenda access requires device authentication. Ask Watch integration requires identifying the intended product or feature and its supported API.
 - Add unified email after the calendar milestone. Live provider writes require separate authorization.

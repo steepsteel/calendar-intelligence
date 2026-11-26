@@ -1,3 +1,4 @@
+import type { Provider } from '../src/calendar.ts'
 import { providerGet, zohoEndpoints, type OAuthProvider } from './providers.ts'
 
 const googleBase = 'https://www.googleapis.com/calendar/v3'
@@ -21,7 +22,7 @@ interface Item {
   isAllDay?: boolean
 }
 
-export function normalizeEvent(provider: OAuthProvider, calendarId: string, event: Item) {
+export function normalizeEvent(provider: Provider, calendarId: string, event: Item) {
   if (event.status === 'cancelled' || event.isCancelled) return null
   const start = event.start?.dateTime || event.start?.date
   const end = event.end?.dateTime || event.end?.date
@@ -119,6 +120,7 @@ async function* zohoEvents(read: ReadPage, base: string, id: string, start: stri
   }))
   if (!Array.isArray(data.events)) throw new Error('Invalid Zoho event response')
   yield data.events.map(event => {
+    if (!event.uid || typeof event.uid !== 'string') throw new Error('Invalid Zoho event ID')
     const starts = parseZohoDate(event.dateandtime?.start ?? event.start, Boolean(event.isallday))
     return {
       id: JSON.stringify([event.uid, starts.dateTime ?? starts.date]),
@@ -146,7 +148,9 @@ export async function calendarSnapshot(
   const google = provider === 'google'
   const zoho = provider === 'zoho' ? zohoEndpoints(zohoRegion).calendar : null
   const calendars = google
-    ? googlePages<{ id: string; accessRole?: string }>(googleBase + '/users/me/calendarList?maxResults=250', read)
+    ? googlePages<{ id: string; accessRole?: string }>(withParams(googleBase + '/users/me/calendarList', {
+        maxResults: '250', fields: 'kind,nextPageToken,items(id,accessRole)',
+      }), read)
     : zoho ? zohoCalendars(read, zoho) : graphPages<{ id: string }>(graphBase + '/me/calendars?$select=id', read)
   let scanned = 0
 
@@ -158,7 +162,8 @@ export async function calendarSnapshot(
       const id = encodeURIComponent(calendar.id)
       const pages = google
         ? googlePages<Item>(withParams(googleBase + '/calendars/' + id + '/events', {
-            timeMin: start, timeMax: end, singleEvents: 'true', maxResults: '2500',
+            timeMin: start, timeMax: end, singleEvents: 'true', maxResults: '500',
+            fields: 'kind,nextPageToken,items(id,iCalUID,summary,status,start,end,transparency,visibility)',
           }), read)
         : zoho ? zohoEvents(read, zoho, id, start, end) : graphPages<Item>(withParams(graphBase + '/me/calendars/' + id + '/calendarView', {
             startDateTime: start, endDateTime: end,
