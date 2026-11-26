@@ -10,12 +10,17 @@ The repository includes a dedicated Cloudflare Worker entry point and Supabase m
 
 The production bundle and five automated tests passed. A local Worker run returned a healthy response and served the built dashboard. A narrow Chromium viewport verified the demo agenda, conflict badges, title hiding, and automatic and manual provider selection. The migration ran in an embedded PostgreSQL instance with synthetic Supabase roles and users. It allowed each user to read only their own calendar rows, blocked account ID reads and client updates, and denied anonymous event access. Hosted Supabase sign-in and provider APIs still need integration testing.
 
-## Prototype work remaining
+## Read-only onboarding and imports
 
-- Implement read-only Google and Microsoft OAuth with callback state bound to the signed-in user, PKCE where supported, and encrypted refresh token storage. Implement Zoho OAuth with region-aware endpoints and verify Apple iCloud CalDAV discovery and app-specific-password handling.
-- Add paginated imports and provider-specific event normalization, including recurring exceptions, cancelled events, source time zones and all-day dates. Provider identifiers and cursor storage must support safe retries.
-- Use a Worker cron trigger and Cloudflare Queue for per-connection sync. Use an atomic database claim or lease to avoid concurrent processing, idempotent upserts for redelivery, and delayed retries for throttling. Distinguish transient failures from credentials that require reauthorization.
-- Add pause, disconnect and data deletion controls. Validate sign-in, tenant isolation and sync against dedicated test accounts before a personal deployment.
-- Verify Apple Watch requirements with a small watchOS agenda prototype. The browser dashboard's narrow layout is an initial accessibility step. Investigate the intended Ask Watch product or feature and its supported interface before selecting an integration approach.
+The Worker issues owner-only OAuth requests with single-use state, a secure browser cookie, and PKCE for Google and Microsoft. Zoho uses a server-based client in one configured data center. Credentials are encrypted with AES-GCM and bound to their owner, provider and provider account ID. The dashboard supports pause, resume and disconnect. Disconnect removes imported rows and the stored credential. Access can also be revoked at the provider.
 
-A usable connected prototype still requires provider app registrations, test credentials, and deployed isolated infrastructure. Confirm recurring costs and obtain approval before purchases.
+A Cloudflare cron runs every two minutes and claims one due account with a database lease. The account is eligible again ten minutes after a successful run. Each run fetches an 18-day rolling window. The dashboard exposes the next 14 days. A complete fetch can update events and remove missing rows within the fetched window. A partial or failed fetch leaves the last good snapshot intact. Throttling and transient failures delay the next attempt. Revocation prompts reauthorization. Full-window polling is appropriate for a small personal deployment. Provider cursors, queue fan-out, historical retention cleanup, and all-day date fidelity across time zones remain follow-up work.
+
+The local checks use simulated provider requests and isolated database roles. Live account consent, Graph shared-calendar behavior, Zoho event response variants, and the deployed Free plan's CPU budget need real-account verification. The browser and watch probe use the same HTTPS origin. The watch probe returns a request ID and time and has no access to private data.
+
+## Remaining prototype work
+
+- Set up the dedicated Cloudflare Worker, custom domain and Supabase project, then verify private sign-in and the same live agenda on desktop and iPhone.
+- Complete and verify iCloud CalDAV discovery, recurring events and app-specific password enrollment. Keep iCloud disabled until its read-only behavior is verified.
+- Install a watchOS build and verify the direct HTTPS check with the paired iPhone powered off. Private Watch agenda access requires device authentication. Ask Watch integration requires identifying the intended product or feature and its supported API.
+- Add unified email after the calendar milestone. Live provider writes require separate authorization.
